@@ -1,0 +1,37 @@
+node('jetpack-installer') {
+    stage('check user') {
+        echo "hello world"
+        echo "${CLOUD_NAME}"
+        sh script: '''
+           if id "${CLOUD_NAME}" >/dev/null 2>&1; then
+             echo "user exist"
+           else
+             echo "user not exist, creating..."
+             useradd -G wheel "${CLOUD_NAME}"
+           fi
+        '''
+    }
+    stage('set jetpack variables') {
+        sh script: '''
+           sudo -i -u "${CLOUD_NAME}" bash <<-EOF
+           rm -rf jenkins_dir
+           mkdir jenkins_dir
+           cd jenkins_dir
+           git clone https://github.com/masco/jetpack.git
+           cd jetpack
+	   git checkout jetpack-ui
+           cp ci/ui_jetpack_all.yml group_vars/all.yml
+EOF
+        '''
+    }
+    stage('run jetpack') {
+        sh script: '''
+           sudo -i -u "${CLOUD_NAME}" bash <<-EOF
+           cd jenkins_dir/jetpack
+           export CLOUD_NAME="${CLOUD_NAME}"
+           export ANSIBLE_SSH_PASSWORD="${ANSIBLE_SSH_PASSWORD}"
+           ansible-playbook main.yml
+EOF
+        '''
+    }
+}
